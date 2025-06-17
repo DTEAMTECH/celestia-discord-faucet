@@ -1,0 +1,2 @@
+# celestia-discord-faucet
+
