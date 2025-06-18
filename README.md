@@ -16,7 +16,7 @@ This faucet is hosted in the DTEAM Discord server and helps community members an
 
 2. Navigate to the `#🚰・celestia` channel.
 
-3. Run the command: !faucet <celestia_address>
+3. Run the command: /faucet <celestia_address>
 
 4. If the address is valid and the cooldown period has passed, the bot will send test tokens to your wallet.
 
