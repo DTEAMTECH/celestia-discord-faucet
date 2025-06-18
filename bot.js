@@ -80,8 +80,8 @@ client.on("interactionCreate", async (interaction) => {
       await interaction.editReply({
         embeds: [
           new EmbedBuilder()
-            .setTitle("Faucet Success")
-            .setDescription(`🟢 [View on Explorer](${explorer})`)
+            .setTitle("Tokens successfully sent")
+            .setDescription(`🟢 **Explorer link:** ${explorer}`)
             .setColor(Colors.Green)
             .setTimestamp(),
         ],
@@ -92,7 +92,7 @@ client.on("interactionCreate", async (interaction) => {
         embeds: [
           new EmbedBuilder()
             .setTitle("Faucet Error")
-            .setDescription("🔴 Failed to credit tokens. Try again later.")
+            .setDescription("🔴 Failed to send tokens. Try again later.")
             .setColor(Colors.Red)
             .setTimestamp(),
         ],
