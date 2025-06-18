@@ -23,10 +23,10 @@ This faucet is hosted in the DTEAM Discord server and helps community members an
 ## Examples
 
 ### 1. Faucet command usage
-
+<img width="868" alt="image" src="https://github.com/user-attachments/assets/eaa10481-ddd7-40b1-ac81-f90f3c91cfea" />
 
 ### 2. Successful faucet confirmation
-
+<img width="871" alt="image" src="https://github.com/user-attachments/assets/26e5abfe-fded-4e81-93c3-e110019fde3f" />
 
 ## Features
 
