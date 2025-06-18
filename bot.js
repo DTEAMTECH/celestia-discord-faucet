@@ -1,130 +1,104 @@
-const { Client, GatewayIntentBits, EmbedBuilder } = require('discord.js');
-const axios = require('axios');
-const NodeCache = require('node-cache');
-require('dotenv').config();
+require("dotenv").config();
+const { REST, Routes } = require("discord.js");
+const {
+  Client,
+  GatewayIntentBits,
+  EmbedBuilder,
+  Colors,
+} = require("discord.js");
+const { SlashCommandBuilder } = require("@discordjs/builders");
+const axios = require("axios");
 
-const requestCache = new NodeCache({ stdTTL: 24 * 60 * 60, checkperiod: 60 });
-const CHANNEL_ID = process.env.DISCORD_CHANNEL_ID
-const PORT = process.env.PORT
+const TOKEN = process.env.DISCORD_TOKEN;
+const CLIENT_ID = process.env.CLIENT_ID;
+const GUILD_ID = process.env.GUILD_ID;
+const CHANNEL_ID = process.env.CHANNEL_ID;
+const FAUCET_PORT = process.env.PORT;
+const PROJECT = process.env.PROJECT_NAME;
 
-const client = new Client({
-    intents: [
-        GatewayIntentBits.Guilds,
-        GatewayIntentBits.GuildMessages,
-        GatewayIntentBits.MessageContent,
-    ],
+const commands = [
+  new SlashCommandBuilder()
+    .setName("faucet")
+    .setDescription("Request testnet tokens from the faucet")
+    .addStringOption((opt) =>
+      opt
+        .setName("address")
+        .setDescription(`${PROJECT} address to credit`)
+        .setRequired(true)
+    )
+    .toJSON(),
+];
+
+const rest = new REST({ version: "10" }).setToken(TOKEN);
+
+(async () => {
+  try {
+    await rest.put(Routes.applicationGuildCommands(CLIENT_ID, GUILD_ID), {
+      body: commands,
+    });
+    console.log("Slash command registered.");
+  } catch (err) {
+    console.error("Command registration failed:", err);
+  }
+})();
+
+const client = new Client({ intents: [GatewayIntentBits.Guilds] });
+
+client.once("ready", () => {
+  console.log(`Logged in as ${client.user.tag}`);
 });
 
-client.once('ready', () => {
-    console.log(`Logged in as ${client.user.tag}!`);
-});
-
-function isValidAddress(address) {
-    const regex = /^celestia1[0-9a-z]{38}$/;
-    return regex.test(address);
-}
-
-function getRemainingTime(lastRequestTime) {
-    const now = Date.now();
-    const msIn24Hours = 24 * 60 * 60 * 1000;
-    const remainingTime = msIn24Hours - (now - lastRequestTime);
-
-    const hours = Math.floor((remainingTime % msIn24Hours) / (60 * 60 * 1000));
-    const minutes = Math.floor((remainingTime % (60 * 60 * 1000)) / (60 * 1000));
-    const seconds = Math.floor((remainingTime % (60 * 1000)) / 1000);
-
-    return { hours, minutes, seconds };
-}
-
-client.on('messageCreate', async (message) => {
-    if (message.channel.id !== CHANNEL_ID) return;
-
-    if (message.content.startsWith('!faucet')) {
-        const args = message.content.split(' ');
-        if (args.length !== 2) {
-            message.reply('Usage: !faucet <address>');
-            return;
-        }
-
-        const address = args[1];
-        const userId = message.author.id;
-
-        if (!isValidAddress(address)) {
-            const embed = new EmbedBuilder()
-                .setTitle('Tokens have not been sent')
-                .setDescription(`🔴 **An error has occurred:**\nInvalid address format. Please provide a valid ${process.env.PROJECT_NAME.charAt(0).toUpperCase() + process.env.PROJECT_NAME.slice(1)} address.`)
-                .setThumbnail(`https://raw.githubusercontent.com/DTEAMTECH/contributions/main/${process.env.PROJECT_NAME}/utils/faucet.png`)
-                .setColor('Red')
-                .setTimestamp();
-
-            message.reply({ embeds: [embed] });
-            return;
-        }
-
-        const lastAddressRequestTime = requestCache.get(address);
-        const lastUserRequestTime = requestCache.get(userId);
-
-        if (lastUserRequestTime) {
-            const remainingTime = getRemainingTime(lastUserRequestTime);
-
-            const embed = new EmbedBuilder()
-                .setTitle('Tokens have not been sent')
-                .setDescription(`🔴 **An error has occurred:**\nYou have already requested tokens in the last 24 hours.\n\nPlease try again in ${remainingTime.hours} hours, ${remainingTime.minutes} minutes, and ${remainingTime.seconds} seconds.`)
-                .setThumbnail(`https://raw.githubusercontent.com/DTEAMTECH/contributions/main/${process.env.PROJECT_NAME}/utils/faucet.png`)
-                .setColor('Red')
-                .setTimestamp();
-
-            message.reply({ embeds: [embed] });
-            return;
-        }
-
-        if (lastAddressRequestTime) {
-            const remainingTime = getRemainingTime(lastAddressRequestTime);
-
-            const embed = new EmbedBuilder()
-                .setTitle('Tokens have not been sent')
-                .setDescription(`🔴 **An error has occurred:**\nThis address has already requested tokens in the last 24 hours.\n\nPlease try again in ${remainingTime.hours} hours, ${remainingTime.minutes} minutes, and ${remainingTime.seconds} seconds.`)
-                .setThumbnail(`https://raw.githubusercontent.com/DTEAMTECH/contributions/main/${process.env.PROJECT_NAME}/utils/faucet.png`)
-                .setColor('Red')
-                .setTimestamp();
-
-            message.reply({ embeds: [embed] });
-            return;
-        }
-
-        const loadingMessage = await message.reply('Creating transaction...');
-
-        try {
-            const response = await axios.post(`http://localhost:${PORT}/credit`, {
-                denom: process.env.DENOM,
-                address,
-            });
-
-            const txHash = response.data.txHash;
-            const explorerLink = `https://explorer.testnet.dteam.tech/${process.env.PROJECT_NAME}/tx/${txHash}`;
-
-            const embed = new EmbedBuilder()
-                .setTitle('Tokens successfully sent')
-                .setDescription(`🟢 **Explorer link:** ${explorerLink}`)
-                .setThumbnail(`https://raw.githubusercontent.com/DTEAMTECH/contributions/main/${process.env.PROJECT_NAME}/utils/faucet.png`)
-                .setColor('Green')
-                .setTimestamp();
-
-            await loadingMessage.edit({ content: null, embeds: [embed] });
-
-            requestCache.set(address, Date.now());
-            requestCache.set(userId, Date.now());
-        } catch (error) {
-            const embed = new EmbedBuilder()
-                .setTitle('Tokens have not been sent')
-                .setDescription(`🔴 **An error has occurred.** Please, try again later.`)
-                .setThumbnail(`https://raw.githubusercontent.com/DTEAMTECH/contributions/main/${process.env.PROJECT_NAME}/utils/faucet.png`)
-                .setColor('Red')
-                .setTimestamp();
-
-            await loadingMessage.edit({ content: null, embeds: [embed] });
-        }
+client.on("interactionCreate", async (interaction) => {
+  if (!interaction.isChatInputCommand()) return;
+  if (interaction.channelId !== CHANNEL_ID) {
+    return interaction.reply({
+      content: "❌ This command can only be used in the designated channel.",
+      ephemeral: true,
+    });
+  }
+  if (interaction.commandName === "faucet") {
+    const address = interaction.options.getString("address", true);
+    await interaction.deferReply({ ephemeral: true });
+    if (!/^celestia1[0-9a-z]{38}$/.test(address)) {
+      return interaction.editReply({
+        embeds: [
+          new EmbedBuilder()
+            .setTitle("Faucet Error")
+            .setDescription("🔴 Invalid address format.")
+            .setColor(Colors.Red)
+            .setTimestamp(),
+        ],
+      });
     }
+    try {
+      const resp = await axios.post(`http://localhost:${FAUCET_PORT}/credit`, {
+        denom: process.env.DENOM,
+        address,
+      });
+      const txHash = resp.data.txHash;
+      const explorer = `https://explorer.testnet.dteam.tech/${PROJECT}/tx/${txHash}`;
+      await interaction.editReply({
+        embeds: [
+          new EmbedBuilder()
+            .setTitle("Faucet Success")
+            .setDescription(`🟢 [View on Explorer](${explorer})`)
+            .setColor(Colors.Green)
+            .setTimestamp(),
+        ],
+      });
+    } catch (err) {
+      console.error(err);
+      await interaction.editReply({
+        embeds: [
+          new EmbedBuilder()
+            .setTitle("Faucet Error")
+            .setDescription("🔴 Failed to credit tokens. Try again later.")
+            .setColor(Colors.Red)
+            .setTimestamp(),
+        ],
+      });
+    }
+  }
 });
 
-client.login(process.env.DISCORD_BOT_TOKEN);
+client.login(TOKEN);
