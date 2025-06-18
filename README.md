@@ -1,6 +1,10 @@
 # Celestia Discord Faucet
 
+![discord_faucet](https://github.com/user-attachments/assets/54e64be2-c5e0-4a14-880f-143b8797128d)
+
 A lightweight Discord bot for distributing Celestia testnet tokens, available in the DTEAM community server.
+
+---
 
 ## About
 
